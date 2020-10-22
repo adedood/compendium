@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: go-server
+  labels:
+    app: go-server
+spec:
+  containers:
+    - name: go-server
+      image: gocd/gocd-server:v20.8.0
+      ports:
+        - name: app-port
+          containerPort: 8153
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-server
+spec:
+  selector:
+    app: go-server
+  ports:
+    - name: svc-port
+      port: 8153
+      targetPort: 8153
+      nodePort: 31000
+  type: NodePort
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+    name: cm-go-server
+data: 
+    GO_SERVER_URL: 'http://go-server:8153/go'
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: go-agent
+  labels:
+    app: go-agent
+spec:
+  initContainers:
+    - name: busybox
+      image: busybox
+      command: ["/bin/sh", "-c", "chmod -R 777 /go/html"]
+      volumeMounts:
+        - name: website
+          mountPath: /go/html/
+  containers:
+    - name: go-agent
+      image: gocd/gocd-agent-ubuntu-16.04:v20.8.0
+      ports:
+        - name: app-port
+          containerPort: 8152
+      env:
+        - name: GO_SERVER_URL
+          valueFrom: 
+            configMapKeyRef: 
+                name: cm-go-server
+                key: GO_SERVER_URL
+      volumeMounts:
+        - name: website
+          mountPath: /go/html/
+  volumes:
+    - name: website
+      hostPath:
+        path: /website
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  containers:
+    - name: nginx
+      image: nginx
+      ports:
+        - name: app-port
+          containerPort: 80
+      volumeMounts:
+        - name: website
+          mountPath: /usr/share/nginx/html/
+  volumes:
+    - name: website
+      hostPath:
+        path: /website

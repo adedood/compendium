@@ -1,2 +1,2 @@
-# compendium
-A collection of personal dabbling
+## compendium
+Infra playground and experiments
